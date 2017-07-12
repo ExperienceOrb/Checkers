@@ -1,9 +1,12 @@
 var turn = true;
 var winner = 0;
 
+var possibleMoves = [];
+var selected = null;
+
 board = [
     [0, 2, 0, 2, 0, 2, 0, 2],
-    [2, 0, 2, 0, 2, 0, 2, 0],
+    [2, 0, 2, 0, 0, 0, 2, 0],
     [0, 2, 0, 2, 0, 2, 0, 2],
     [0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0],
@@ -27,7 +30,7 @@ $(document).ready(function(){
             var cell = document.createElement('div');
             $cell = $(cell);
             $tr.append($cell);
-            if (row%2==column%2){
+            if (row%2!=column%2){
                 $cell.addClass('black');
             } else {
                 $cell.addClass('red');
@@ -38,16 +41,108 @@ $(document).ready(function(){
             $img.attr('src', 'assets/transparent.png');
             $img.css({width:'100%', height:'100%'});
             $cell.append($img);
+            $cell.click(function(){
+                clearSelections();
+                $element = $(this)[0];
+                var row = Math.round($element.offsetParent.offsetTop/$element.clientHeight);
+                var column = Math.round($element.offsetLeft/$element.clientWidth);
+                if (board[row][column]%2==1){
+                    selected = $element;
+                    $($element.children[0]).addClass('selected');
+                    possibleMoves = getPossibleMoves(row, column, true);
+                    for (var i = 0; i<possibleMoves.length; i++){
+                        $cell = $($('.grid').children()[possibleMoves[i][0]]).children()[possibleMoves[i][1]];
+                        $img = $($cell.children[0]);
+                        if (possibleMoves[i][2]=='n')
+                            $img.css('background-color', 'rgba(0, 255, 0, .75)');
+                        else if (possibleMoves[i][2]=='j')
+                            $img.css('background-color', 'rgba(0, 0, 255, .75)');
+                    }
+                    console.log(possibleMoves);
+                } else {
+                    $cell = $($('.grid').children()[row]).children()[column];
+                    $img = $($cell.children[0]);
+                    if ($img.css('background-color')=='rgba(0, 255, 0, 0)'){
+                        oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
+                        oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
+                        board[row][column] = board[oldRow][oldColumn];
+                        board[oldRow][oldColumn] = 0;
+                        setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
+                        setCellPiece(row, column, board[row][column]);
+                    } else if ($img.css('background-color')=='rgba(0, 0, 255, 0)'){
+                        //TODO: remove jumped piece
+                        oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
+                        oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
+                        board[row][column] = board[oldRow][oldColumn];
+                        board[oldRow][oldColumn] = 0;
+                        setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
+                        setCellPiece(row, column, board[row][column]);
+                    }
+                }
+            });
             setCellPiece(row, column, board[row][column]);
         }
     }
 });
 
+function clearSelections(){
+    if (selected)
+        $(selected.children[0]).removeClass('selected');
+    for (var i = 0; i<possibleMoves.length; i++){
+        $cell = $($('.grid').children()[possibleMoves[i][0]]).children()[possibleMoves[i][1]];
+        $img = $($cell.children[0]);
+        $img.css('background-color', transparentRGBA($img.css('background-color')));
+    }
+}
+
+function transparentRGBA(value){
+    old = value.substring(0, value.lastIndexOf(',')+1);
+    return old+' 0)';
+}
+
+//TODO: If a jump is available from another piece, this piece should have no available moves............
+function getPossibleMoves(row, column, human){
+    var dir = human * -2 + 1;
+    var ret = [];
+    if (row + dir <=7 && row + dir >= 0){
+        if (column-1 >=0 && board[row+dir][column-1]==0){
+            ret.push([row+dir, column-1, 'n']);
+        } else {
+            if (board[row+dir][column-1]%2!=board[row][column]%2){
+                if (row + dir*2 <= 7 && row + dir*2 >= 0 && column-2 >= 0){
+                    if (board[row + dir*2][column-2]==0){
+                        ret.push([row + dir*2, column-2, 'j']);
+                    }
+                }
+            }
+        }
+        if (column+1 <= 7 && board[row+dir][column+1]==0){
+            ret.push([row+dir, column+1, 'n']);
+        } else {
+            if (board[row+dir][column+1]%2!=board[row][column]%2){
+                if (row + dir*2 <= 7 && row + dir*2 >= 0 && column+2 >= 0){
+                    if (board[row + dir*2][column+2]==0){
+                        ret.push([row + dir*2, column+2, 'j']);
+                    }
+                }
+            }
+        }
+    }
+    if (board[row][column]>2){
+        //TODO: Add king moving mechanics
+    }
+    return ret;
+}
+
 function setCellPiece(row, column, piece){
     $cell = $($('.grid').children()[row]).children()[column];
     $img = $($cell.children[0]);
     if (piece==0){
-
+        $img.removeClass('black');
+        $img.removeClass('white');
+        $img.removeClass('blackking');
+        $img.removeClass('whiteking');
+        $img.removeClass('piece');
     } else {
         if (piece==1){
             $img.addClass('black');

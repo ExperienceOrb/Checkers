@@ -16,6 +16,14 @@
     background-position: 33.33% 0px;
 }
 
+.piece:hover{
+    background-color: rgba(125, 125, 125, 0.75);
+}
+
+.selected{
+    background-color: rgba(125, 125, 125, 0.75);
+}
+
 h1{
     color: #000;
 }
