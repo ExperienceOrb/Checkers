@@ -3,6 +3,7 @@ var winner = 0;
 
 var possibleMoves = [];
 var selected = null;
+var mustPlayerJump = false;
 
 board = [
     [0, 2, 0, 2, 0, 2, 0, 2],
@@ -42,41 +43,25 @@ $(document).ready(function(){
             $img.css({width:'100%', height:'100%'});
             $cell.append($img);
             $cell.click(function(){
-                clearSelections();
-                $element = $(this)[0];
-                var row = Math.round($element.offsetParent.offsetTop/$element.clientHeight);
-                var column = Math.round($element.offsetLeft/$element.clientWidth);
-                if (board[row][column]%2==1){
-                    selected = $element;
-                    $($element.children[0]).addClass('selected');
-                    possibleMoves = getPossibleMoves(row, column, true);
-                    for (var i = 0; i<possibleMoves.length; i++){
-                        $cell = $($('.grid').children()[possibleMoves[i][0]]).children()[possibleMoves[i][1]];
-                        $img = $($cell.children[0]);
-                        if (possibleMoves[i][2]=='n')
-                            $img.css('background-color', 'rgba(0, 255, 0, .75)');
-                        else if (possibleMoves[i][2]=='j')
-                            $img.css('background-color', 'rgba(0, 0, 255, .75)');
-                    }
-                    console.log(possibleMoves);
-                } else {
-                    $cell = $($('.grid').children()[row]).children()[column];
-                    $img = $($cell.children[0]);
-                    if ($img.css('background-color')=='rgba(0, 255, 0, 0)'){
-                        oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
-                        oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
-                        board[row][column] = board[oldRow][oldColumn];
-                        board[oldRow][oldColumn] = 0;
-                        setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
-                        setCellPiece(row, column, board[row][column]);
-                    } else if ($img.css('background-color')=='rgba(0, 0, 255, 0)'){
-                        //TODO: remove jumped piece
-                        oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
-                        oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
-                        board[row][column] = board[oldRow][oldColumn];
-                        board[oldRow][oldColumn] = 0;
-                        setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
-                        setCellPiece(row, column, board[row][column]);
+                if (turn){
+                    clearSelections();
+                    $element = $(this)[0];
+                    var row = Math.round($element.offsetParent.offsetTop/$element.clientHeight);
+                    var column = Math.round($element.offsetLeft/$element.clientWidth);
+                    if (board[row][column]%2==1){
+                        selected = $element;
+                        $($element.children[0]).addClass('selected');
+                        possibleMoves = getPossibleMoves(board, row, column, true);
+                        for (var i = 0; i<possibleMoves.length; i++){
+                            $cell = $($('.grid').children()[possibleMoves[i][0]]).children()[possibleMoves[i][1]];
+                            $img = $($cell.children[0]);
+                            if (possibleMoves[i][2]=='n')
+                                $img.css('background-color', 'rgba(0, 255, 0, .75)');
+                            else if (possibleMoves[i][2]=='j')
+                                $img.css('background-color', 'rgba(0, 0, 255, .75)');
+                        }
+                    } else {
+                        movePiece(board, row, column);
                     }
                 }
             });
@@ -84,6 +69,30 @@ $(document).ready(function(){
         }
     }
 });
+
+function movePiece(board, row, column){
+    $cell = $($('.grid').children()[row]).children()[column];
+    $img = $($cell.children[0]);
+    if ($img.css('background-color')=='rgba(0, 255, 0, 0)'){
+        oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
+        oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
+        board[row][column] = board[oldRow][oldColumn];
+        board[oldRow][oldColumn] = 0;
+        setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
+        setCellPiece(row, column, board[row][column]);
+        changeTurn();
+    } else if ($img.css('background-color')=='rgba(0, 0, 255, 0)'){
+        //TODO: remove jumped piece
+        oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
+        oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
+        board[row][column] = board[oldRow][oldColumn];
+        board[oldRow][oldColumn] = 0;
+        setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
+        setCellPiece(row, column, board[row][column]);
+        changeTurn();
+    }
+    $img.css('background-color', '');
+}
 
 function clearSelections(){
     if (selected)
@@ -93,6 +102,7 @@ function clearSelections(){
         $img = $($cell.children[0]);
         $img.css('background-color', transparentRGBA($img.css('background-color')));
     }
+    possibleMoves = [];
 }
 
 function transparentRGBA(value){
@@ -100,13 +110,28 @@ function transparentRGBA(value){
     return old+' 0)';
 }
 
+function mustPlayerJump(board, human){
+    for (var i = 0; i<64; i++){
+        var p = board[Math.floor(i/8)][i%8];
+        if (p%2==human){
+            var moves = getPossibleMoves(board, Math.floor(i/8), i%8, human);
+            for (var j = 0; j<moves.length; j++){
+                if (moves[j][2]=='j') return true;
+            }
+        }
+    }
+    return false;
+}
+
 //TODO: If a jump is available from another piece, this piece should have no available moves............
-function getPossibleMoves(row, column, human){
+function getPossibleMoves(board, row, column, human){
     var dir = human * -2 + 1;
     var ret = [];
     if (row + dir <=7 && row + dir >= 0){
         if (column-1 >=0 && board[row+dir][column-1]==0){
-            ret.push([row+dir, column-1, 'n']);
+            if (!mustPlayerJump){
+                ret.push([row+dir, column-1, 'n']);
+            }
         } else {
             if (board[row+dir][column-1]%2!=board[row][column]%2){
                 if (row + dir*2 <= 7 && row + dir*2 >= 0 && column-2 >= 0){
@@ -117,7 +142,9 @@ function getPossibleMoves(row, column, human){
             }
         }
         if (column+1 <= 7 && board[row+dir][column+1]==0){
-            ret.push([row+dir, column+1, 'n']);
+            if (!mustPlayerJump){
+                ret.push([row+dir, column+1, 'n']);
+            }
         } else {
             if (board[row+dir][column+1]%2!=board[row][column]%2){
                 if (row + dir*2 <= 7 && row + dir*2 >= 0 && column+2 >= 0){
@@ -157,17 +184,9 @@ function setCellPiece(row, column, piece){
     }
 }
 
-function makePlayerMove(space) {
-    if (turn && !spaceTaken(spaces_X+spaces_O, space)) {
-        spaces_X |= space;
-        updateGUI();
-        turn = !turn;
-        var res = testForWinner(spaces_X, spaces_O, 0);
-        if (checkWinner()=="none"){
-            document.getElementById("whoseturn").src="assets/computer.png";
-            stateChange(-1);
-        }
-    }
+function changeTurn() {
+    turn = !turn;
+    document.getElementById("whoseturn").src="assets/computer.png";
 }
 
 function stateChange(newState) {
@@ -240,70 +259,4 @@ function minimax(b1, b2, depth, original, alpha, beta) {
         }
     }
     return mostLikelyScore;
-}
-
-function spaceTaken(board, space) {
-    return ((board&space)==space);
-}
-
-function reset() {
-    //turn = true;
-    spaces_O = 0;
-    spaces_X = 0;
-    document.getElementById("winner").className = "hidden";
-    updateGUI();
-    if (!turn) {
-        makeAIMove();
-    }
-}
-
-function getBoard(s1, s2) {
-    return s1|s2;
-}
-
-function testForWinner(b1, b2, depth) {
-    for (var i = 0; i<winningValues.length; i++) {
-        var s = winningValues[i];
-        if ((b1&s)==s) {
-            return 10-depth;
-        }
-        else if ((b2&s)==s) {
-            return depth-10;
-        }
-    }
-    return 0;
-}
-
-function checkWinner() {
-    var res = testForWinner(spaces_X, spaces_O, 0);
-    if (res==10) {
-        document.getElementById("windisplay").innerHTML = "HUMAN WINS!!";
-        document.getElementById("winner").className = "shown";
-        return "human";
-    } else if (res==-10) {
-        document.getElementById("windisplay").innerHTML = "COMPUTER WINS!!";
-        document.getElementById("winner").className = "shown";
-        return "computer";
-    } else {
-        if (getBoard(spaces_X, spaces_O)==FULL_BOARD) {
-            document.getElementById("windisplay").innerHTML = "NOBODY WINS!!";
-            document.getElementById("winner").className = "shown";
-            return "tie";
-        }
-    }
-    return "none";
-}
-
-function updateGUI() {
-    for (var i = 0; i<9; i++) {
-        var index = Math.pow(2, i);
-        if ((spaces_X&index)==index) {
-            document.getElementById(index).innerHTML = "X";
-        }
-        else if ((spaces_O&index)==index) {
-            document.getElementById(index).innerHTML = "O";
-        } else {
-            document.getElementById(index).innerHTML = " ";
-        }
-    }
 }
