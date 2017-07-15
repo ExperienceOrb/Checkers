@@ -51,7 +51,7 @@ $(document).ready(function(){
                     if (game_board[row][column]%2==1){
                         selected = $element;
                         $($element.children[0]).addClass('selected');
-                        possibleMoves = getPossibleMoves(game_board, row, column, true);
+                        possibleMoves = getPossibleMoves(game_board, row, column, true, false, mustPlayerJump);
                         for (var i = 0; i<possibleMoves.length; i++){
                             $cell = $($('.grid').children()[possibleMoves[i][0]]).children()[possibleMoves[i][1]];
                             $img = $($cell.children[0]);
@@ -75,7 +75,7 @@ function movePieceHuman(board, row, column){
     $img = $($cell.children[0]);
     oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
     oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
-    var pm = getPossibleMoves(board, oldRow, oldColumn, true, false);
+    var pm = getPossibleMoves(board, oldRow, oldColumn, true, false, mustPlayerJump);
     for (var i = 0; i<pm.length; i++){
         if (row == pm[i][0] && column == pm[i][1]){
             movePiece(board, oldRow, oldColumn, row, column);
@@ -146,14 +146,14 @@ function mustDoubleJump(board, row, column, human){
     return false;
 }
 
-function getAllPossibleMoves(board, human){
+function getAllPossibleMoves(board, human, mj){
     ret = []; //[oldRow, oldColumn, newRow, newColumn, moveType]
     for (var i = 1; i<64; i++){
         r = Math.floor(i/8);
         c = i%8;
         var p = board[r][c];
         if (p>0 && p%2==human){
-            var moves = getPossibleMoves(board, r, c, human);
+            var moves = getPossibleMoves(board, r, c, human, false, mj);
             for (var j = 0; j<moves.length; j++){
                 ret.push([r, c, moves[j][0], moves[j][1], moves[j][2]]);
             }
@@ -162,11 +162,11 @@ function getAllPossibleMoves(board, human){
     return ret;
 }
 
-function getPossibleMoves(board, row, column, human, testForJump){
+function getPossibleMoves(board, row, column, human, testForJump, mj){
     var dir = human * -2 + 1;
     var ret = [];
     if (row + dir <=7 && row + dir >= 0){
-        if (!mustPlayerJump){
+        if (!mj){
             if (column-1 >=0 && board[row+dir][column-1]==0){
                 ret.push([row+dir, column-1, 'n']);
             }
@@ -174,7 +174,7 @@ function getPossibleMoves(board, row, column, human, testForJump){
                 ret.push([row+dir, column+1, 'n']);
             }
         }
-        if (playerMustJump || testForJump){
+        if (mj || testForJump){
             if (board[row+dir][column-1]%2 != board[row][column]%2 && board[row+dir][column-1] > 0){
                 if (row + dir*2 <= 7 && row + dir*2 >= 0 && column-2 >= 0){
                     if (board[row + dir*2][column-2]==0){
@@ -183,7 +183,7 @@ function getPossibleMoves(board, row, column, human, testForJump){
                 }
             }
             if (board[row+dir][column+1]%2 != board[row][column]%2 && board[row+dir][column+1] > 0){
-                if (row + dir*2 <= 7 && row + dir*2 >= 0 && column+2 <= 7){
+                if (row + dir*2  <= 7 && row + dir*2 >= 0 && column+2 <= 7){
                     if (board[row + dir*2][column+2]==0){
                         ret.push([row + dir*2, column+2, 'j']);
                     }
@@ -195,7 +195,7 @@ function getPossibleMoves(board, row, column, human, testForJump){
         //TODO: Add king moving mechanics
         dir *= -1;
         if (row + dir <=7 && row + dir >= 0){
-            if (!mustPlayerJump){
+            if (!mj){
                 if (column-1 >=0 && board[row+dir][column-1]==0){
                     ret.push([row+dir, column-1, 'n']);
                 }
@@ -203,7 +203,7 @@ function getPossibleMoves(board, row, column, human, testForJump){
                     ret.push([row+dir, column+1, 'n']);
                 }
             }
-            if (playerMustJump || testForJump){
+            if (mj || testForJump){
                 if (board[row+dir][column-1]%2 != board[row][column]%2 && board[row+dir][column-1] > 0){
                     if (row + dir*2 <= 7 && row + dir*2 >= 0 && column-2 >= 0){
                         if (board[row + dir*2][column-2]==0){
@@ -285,9 +285,13 @@ function stateChange(newState) {
 }
 
 function makeAIMove() {
-    var moves = getAllPossibleMoves(game_board, false);
+    var moves = getAllPossibleMoves(game_board, false, mustPlayerJump);
     var move = [];
-    if (moves.length==1){
+    if (moves.length == 0){
+        changeTurn();
+        return;
+    }
+    else if (moves.length==1){
         //Obviously dont need to find the best outcome...
         move = moves[0];
         movePiece(game_board, move[0], move[1], move[2], move[3]);
@@ -305,8 +309,9 @@ function makeAIMove() {
             }
             movePiece(tboard, m[0], m[1], m[2], m[3], true);
             if (mustPlayerJump && mustDoubleJump(tboard, m[2], m[3], false)){
-                m = getPossibleMoves(tboard, m[2], m[3], false, false);
-                movePiece(tboard, m[0], m[1], m[2], m[3], true);
+                var or = m[2], oc = m[3];
+                m = getPossibleMoves(tboard, m[2], m[3], false, false, true)[0];
+                movePiece(tboard, or, oc, m[0], m[1], true);
             }
             var score = minimax(tboard, 0, true, -1000, 1000);
             if (score > best){
@@ -327,7 +332,7 @@ function makeAIMove() {
 }
 
 function aiDoubleJump(row, column){
-    var move = getPossibleMoves(game_board, row, column, false, false)[0];
+    var move = getPossibleMoves(game_board, row, column, false, false, true)[0];
     movePiece(game_board, row, column, move[0], move[1]);
     setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
     setCellPiece(row, column, game_board[row][column]);
@@ -344,14 +349,16 @@ function aiDoubleJump(row, column){
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, ai, alpha, beta) {
     var result = scoreBoardAI(board, depth);
-    if (Math.abs(result) > 80 || depth == 10) {
+    if (Math.abs(result) > 800 || depth == 10) {
         return result;
     }
     var talpha = alpha + 0;
     var tbeta = beta + 0;
     ai = !ai;
     var mostLikelyScore = ai ? -1000 : 1000;
-    var possibleSpaces = getAllPossibleMoves(board, !ai);
+    var mj = playerMustJump(board, !ai);
+    var possibleSpaces = getAllPossibleMoves(board, !ai, mj);
+    if (possibleSpaces.length==0) return mostLikelyScore;
     for (var i = 0; i<possibleSpaces.length; i++){
         var m = possibleSpaces[i];
         var tboard = board.slice();
@@ -359,9 +366,10 @@ function minimax(board, depth, ai, alpha, beta) {
             tboard[j] = board[j].slice();
         }
         movePiece(tboard, m[0], m[1], m[2], m[3], true);
-        if (mustPlayerJump && mustDoubleJump(tboard, m[2], m[3], false)){
-            m = getPossibleMoves(tboard, m[2], m[3], false, false);
-            movePiece(tboard, m[0], m[1], m[2], m[3], true);
+        if (mj && mustDoubleJump(tboard, m[2], m[3], false)){
+            var or = m[2], oc = m[3];
+            m = getPossibleMoves(tboard, m[2], m[3], false, false, true)[0];
+            movePiece(tboard, or, oc, m[0], m[1], true);
         }
         var s = minimax(tboard, depth+1, ai, talpha, tbeta);
         if (ai){
@@ -373,6 +381,9 @@ function minimax(board, depth, ai, alpha, beta) {
             tbeta = mostLikelyScore;
             if (mostLikelyScore <= alpha) return mostLikelyScore;
         }
+    }
+    if (mostLikelyScore==-1000 || mostLikelyScore == 1000){
+        console.log(possibleSpaces);
     }
     return mostLikelyScore;
 }
