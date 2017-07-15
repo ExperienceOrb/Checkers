@@ -265,7 +265,7 @@ function changeTurn() {
     possibleMoves = [];
     mustPlayerJump = playerMustJump(game_board, turn);
     doKingCheck(game_board);
-    var result = testForWinner(board, turn);
+    var result = testForWinner(game_board, turn);
     if (result){
         if (turn){
             document.getElementById("windisplay").innerHTML = "HUMAN WINS!!";
