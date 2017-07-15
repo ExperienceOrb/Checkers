@@ -295,8 +295,8 @@ function makeAIMove() {
         setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
     } else {
         //fucking minimax the shit out of this bitch
-        var best = -100;
-        m = moves[0];
+        var best = -1000;
+        move = moves[0];
         for (var i = 0; i<moves.length; i++){
             var m = moves[i];
             var tboard = game_board.slice();
@@ -308,12 +308,13 @@ function makeAIMove() {
                 m = getPossibleMoves(tboard, m[2], m[3], false, false);
                 movePiece(tboard, m[0], m[1], m[2], m[3], true);
             }
-            var score = minimax(tboard, 0, true, -100, 100);
+            var score = minimax(tboard, 0, true, -1000, 1000);
             if (score > best){
                 best = score;
                 move = m;
             }
         }
+        console.log(best);
         movePiece(game_board, move[0], move[1], move[2], move[3]);
         setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
         setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
@@ -343,13 +344,13 @@ function aiDoubleJump(row, column){
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, ai, alpha, beta) {
     var result = scoreBoardAI(board, depth);
-    if (Math.abs(result) > 80 || depth == 9) {
+    if (Math.abs(result) > 80 || depth == 10) {
         return result;
     }
     var talpha = alpha + 0;
     var tbeta = beta + 0;
     ai = !ai;
-    var mostLikelyScore = ai ? -100 : 100;
+    var mostLikelyScore = ai ? -1000 : 1000;
     var possibleSpaces = getAllPossibleMoves(board, !ai);
     for (var i = 0; i<possibleSpaces.length; i++){
         var m = possibleSpaces[i];
@@ -378,10 +379,10 @@ function minimax(board, depth, ai, alpha, beta) {
 
 function scoreBoardAI(board, depth){
     if (testForWinner(board, false)==1){
-        return 100-depth;
+        return 1000-depth;
     }
     if (testForWinner(board, false)==-1){
-        return depth-100;
+        return depth-1000;
     }
     var sum = 0;
     for (var i = 0; i<64; i++){
@@ -391,9 +392,9 @@ function scoreBoardAI(board, depth){
         } else if (p==2){
             sum += 1;
         } else if (p==3){
-            sum -= 3;
+            sum -= 2;
         } else if (p==4){
-            sum += 3;
+            sum += 2;
         }
     }
     return sum;
