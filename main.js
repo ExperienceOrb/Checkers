@@ -75,10 +75,15 @@ function movePieceHuman(board, row, column){
     $img = $($cell.children[0]);
     oldRow = Math.round(selected.offsetParent.offsetTop/selected.clientHeight);
     oldColumn = Math.round(selected.offsetLeft/selected.clientWidth);
-    movePiece(board, oldRow, oldColumn, row, column);
-    setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
-    setCellPiece(row, column, board[row][column]);
-    changeTurn();
+    var pm = getPossibleMoves(board, oldRow, oldColumn, true, false);
+    for (var i = 0; i<pm.length; i++){
+        if (row == pm[i][0] && column == pm[i][1]){
+            movePiece(board, oldRow, oldColumn, row, column);
+            setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
+            setCellPiece(row, column, board[row][column]);
+            changeTurn();
+        }
+    }
     $img.css('background-color', '');
 }
 
@@ -113,9 +118,11 @@ function playerMustJump(board, human){
     for (var i = 0; i<64; i++){
         var p = board[Math.floor(i/8)][i%8];
         if (p>0 && p%2==human){
-            var moves = getPossibleMoves(board, Math.floor(i/8), i%8, human);
+            var moves = getPossibleMoves(board, Math.floor(i/8), i%8, human, true);
             for (var j = 0; j<moves.length; j++){
-                if (moves[j][2]=='j') return true;
+                if (moves[j][2]=='j') {
+                    return true;
+                }
             }
         }
     }
@@ -138,7 +145,7 @@ function getAllPossibleMoves(board, human){
     return ret;
 }
 
-function getPossibleMoves(board, row, column, human){
+function getPossibleMoves(board, row, column, human, testForJump){
     //TODO: Fix logic flow; Currently using this function to determine if the player must jump,
     //but also using that value in the logic means that the value isn't changing.
     var dir = human * -2 + 1;
@@ -148,22 +155,20 @@ function getPossibleMoves(board, row, column, human){
             if (column-1 >=0 && board[row+dir][column-1]==0){
                 ret.push([row+dir, column-1, 'n']);
             }
-        } else {
-            if (board[row+dir][column-1]%2!=board[row][column]%2){
+            if (column+1 <= 7 && board[row+dir][column+1]==0){
+                ret.push([row+dir, column+1, 'n']);
+            }
+        }
+        if (playerMustJump || testForJump){
+            if (board[row+dir][column-1]%2 != board[row][column]%2 && board[row+dir][column-1] > 0){
                 if (row + dir*2 <= 7 && row + dir*2 >= 0 && column-2 >= 0){
                     if (board[row + dir*2][column-2]==0){
                         ret.push([row + dir*2, column-2, 'j']);
                     }
                 }
             }
-        }
-        if (!mustPlayerJump){
-            if (column+1 <= 7 && board[row+dir][column+1]==0){
-                ret.push([row+dir, column+1, 'n']);
-            }
-        } else {
-            if (board[row+dir][column+1]%2!=board[row][column]%2){
-                if (row + dir*2 <= 7 && row + dir*2 >= 0 && column+2 >= 0){
+            if (board[row+dir][column+1]%2 != board[row][column]%2 && board[row+dir][column+1] > 0){
+                if (row + dir*2 <= 7 && row + dir*2 >= 0 && column+2 <= 7){
                     if (board[row + dir*2][column+2]==0){
                         ret.push([row + dir*2, column+2, 'j']);
                     }
@@ -205,7 +210,6 @@ function changeTurn() {
     selected = null;
     possibleMoves = [];
     mustPlayerJump = playerMustJump(game_board, turn);
-    console.log(mustPlayerJump);
     if (turn){
         document.getElementById("whoseturn").src="assets/human.png";
     } else {
@@ -254,7 +258,7 @@ function makeAIMove() {
 //alpha is the best value from the maximizer
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, original, alpha, beta) {
-    return Math.random()*50;
+    return Math.random();//BEST AI
     /*
     var talpha = alpha + 0;
     var tbeta = beta + 0;
