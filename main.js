@@ -192,7 +192,6 @@ function getPossibleMoves(board, row, column, human, testForJump, mj){
         }
     }
     if (board[row][column]>2){
-        //TODO: Add king moving mechanics
         dir *= -1;
         if (row + dir <=7 && row + dir >= 0){
             if (!mj){
@@ -276,14 +275,6 @@ function changeTurn() {
     }
 }
 
-function stateChange(newState) {
-    setTimeout(function () {
-        if (newState == -1) {
-            makeAIMove();
-        }
-    }, 1000);
-}
-
 function makeAIMove() {
     var moves = getAllPossibleMoves(game_board, false, mustPlayerJump);
     var move = [];
@@ -310,8 +301,8 @@ function makeAIMove() {
             movePiece(tboard, m[0], m[1], m[2], m[3], true);
             if (mustPlayerJump && mustDoubleJump(tboard, m[2], m[3], false)){
                 var or = m[2], oc = m[3];
-                m = getPossibleMoves(tboard, m[2], m[3], false, false, true)[0];
-                movePiece(tboard, or, oc, m[0], m[1], true);
+                var n = getPossibleMoves(tboard, m[2], m[3], false, false, true)[0];
+                movePiece(tboard, or, oc, n[0], n[1], true);
             }
             var score = minimax(tboard, 0, true, -1000, 1000);
             if (score > best){
@@ -343,8 +334,8 @@ function aiDoubleJump(row, column){
     }
 }
 
-//orignal = true: maximizer
-//original = false: minimizer
+//ai = true: maximizer
+//ai = false: minimizer
 //alpha is the best value from the maximizer
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, ai, alpha, beta) {
@@ -366,24 +357,25 @@ function minimax(board, depth, ai, alpha, beta) {
             tboard[j] = board[j].slice();
         }
         movePiece(tboard, m[0], m[1], m[2], m[3], true);
-        if (mj && mustDoubleJump(tboard, m[2], m[3], false)){
+        if (mj && mustDoubleJump(tboard, m[2], m[3], !ai)){
             var or = m[2], oc = m[3];
-            m = getPossibleMoves(tboard, m[2], m[3], false, false, true)[0];
+            m = getPossibleMoves(tboard, m[2], m[3], !ai, false, true)[0];
             movePiece(tboard, or, oc, m[0], m[1], true);
         }
         var s = minimax(tboard, depth+1, ai, talpha, tbeta);
         if (ai){
             if (s >= mostLikelyScore) mostLikelyScore = s;
             talpha = mostLikelyScore;
-            if (mostLikelyScore >= beta) return mostLikelyScore;
+            if (mostLikelyScore >= beta) {
+                return mostLikelyScore;
+            }
         } else {
             if (s <= mostLikelyScore) mostLikelyScore = s;
             tbeta = mostLikelyScore;
-            if (mostLikelyScore <= alpha) return mostLikelyScore;
+            if (mostLikelyScore <= alpha) {
+                return mostLikelyScore;
+             }
         }
-    }
-    if (mostLikelyScore==-1000 || mostLikelyScore == 1000){
-        console.log(possibleSpaces);
     }
     return mostLikelyScore;
 }
