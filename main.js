@@ -265,13 +265,24 @@ function changeTurn() {
     possibleMoves = [];
     mustPlayerJump = playerMustJump(game_board, turn);
     doKingCheck(game_board);
-    if (turn){
-        document.getElementById("whoseturn").src="assets/human.png";
+    var result = testForWinner(board, turn);
+    if (result){
+        if (turn){
+            document.getElementById("windisplay").innerHTML = "HUMAN WINS!!";
+            document.getElementById("winner").className = "shown";
+        } else {
+            document.getElementById("windisplay").innerHTML = "COMPUTER WINS!!";
+            document.getElementById("winner").className = "shown";
+        }
     } else {
-        document.getElementById("whoseturn").src="assets/computer.png";
-        setTimeout(function(){
-            makeAIMove();
-        }, 100);
+        if (turn){
+            document.getElementById("whoseturn").src="assets/human.png";
+        } else {
+            document.getElementById("whoseturn").src="assets/computer.png";
+            setTimeout(function(){
+                makeAIMove();
+            }, 100);
+        }
     }
 }
 
@@ -310,7 +321,6 @@ function makeAIMove() {
                 move = m;
             }
         }
-        console.log(best);
         movePiece(game_board, move[0], move[1], move[2], move[3]);
         setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
         setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
