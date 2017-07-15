@@ -7,7 +7,7 @@ var mustPlayerJump = false;
 
 game_board = [
     [0, 2, 0, 2, 0, 2, 0, 2],
-    [2, 0, 2, 0, 0, 0, 2, 0],
+    [2, 0, 2, 0, 2, 0, 2, 0],
     [0, 2, 0, 2, 0, 2, 0, 2],
     [0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0],
@@ -81,20 +81,27 @@ function movePieceHuman(board, row, column){
             movePiece(board, oldRow, oldColumn, row, column);
             setCellPiece(oldRow, oldColumn, board[oldRow][oldColumn]);
             setCellPiece(row, column, board[row][column]);
-            changeTurn();
+            if (!mustPlayerJump || !mustDoubleJump(board, row, column, true)){
+                changeTurn();
+            }
+            break;
         }
     }
     $img.css('background-color', '');
 }
 
-function movePiece(board, oldRow, oldColumn, row, column){
+function movePiece(board, oldRow, oldColumn, row, column, aitest){
     if (Math.abs(oldRow-row)==1){//Normal move
         board[row][column] = board[oldRow][oldColumn];
         board[oldRow][oldColumn] = 0;
     } else {//Must be a jump
-        //TODO: remove jumped piece
         board[row][column] = board[oldRow][oldColumn];
         board[oldRow][oldColumn] = 0;
+        delRow = oldRow + (row-oldRow)/2;
+        delCol = oldColumn + (column-oldColumn)/2;
+        board[delRow][delCol] = 0;
+        if (!aitest)
+            setCellPiece(delRow, delCol, board[delRow][delCol]);
     }
 }
 
@@ -115,7 +122,7 @@ function transparentRGBA(value){
 }
 
 function playerMustJump(board, human){
-    for (var i = 0; i<64; i++){
+    for (var i = 1; i<64; i++){
         var p = board[Math.floor(i/8)][i%8];
         if (p>0 && p%2==human){
             var moves = getPossibleMoves(board, Math.floor(i/8), i%8, human, true);
@@ -129,9 +136,19 @@ function playerMustJump(board, human){
     return false;
 }
 
+function mustDoubleJump(board, row, column, human){
+    var moves = getPossibleMoves(board, row, column, human, true);
+    for (var i = 0; i<moves.length; i++){
+        if (moves[i][2]=='j'){
+            return true;
+        }
+    }
+    return false;
+}
+
 function getAllPossibleMoves(board, human){
     ret = []; //[oldRow, oldColumn, newRow, newColumn, moveType]
-    for (var i = 0; i<64; i++){
+    for (var i = 1; i<64; i++){
         r = Math.floor(i/8);
         c = i%8;
         var p = board[r][c];
@@ -146,8 +163,6 @@ function getAllPossibleMoves(board, human){
 }
 
 function getPossibleMoves(board, row, column, human, testForJump){
-    //TODO: Fix logic flow; Currently using this function to determine if the player must jump,
-    //but also using that value in the logic means that the value isn't changing.
     var dir = human * -2 + 1;
     var ret = [];
     if (row + dir <=7 && row + dir >= 0){
@@ -178,6 +193,33 @@ function getPossibleMoves(board, row, column, human, testForJump){
     }
     if (board[row][column]>2){
         //TODO: Add king moving mechanics
+        dir *= -1;
+        if (row + dir <=7 && row + dir >= 0){
+            if (!mustPlayerJump){
+                if (column-1 >=0 && board[row+dir][column-1]==0){
+                    ret.push([row+dir, column-1, 'n']);
+                }
+                if (column+1 <= 7 && board[row+dir][column+1]==0){
+                    ret.push([row+dir, column+1, 'n']);
+                }
+            }
+            if (playerMustJump || testForJump){
+                if (board[row+dir][column-1]%2 != board[row][column]%2 && board[row+dir][column-1] > 0){
+                    if (row + dir*2 <= 7 && row + dir*2 >= 0 && column-2 >= 0){
+                        if (board[row + dir*2][column-2]==0){
+                            ret.push([row + dir*2, column-2, 'j']);
+                        }
+                    }
+                }
+                if (board[row+dir][column+1]%2 != board[row][column]%2 && board[row+dir][column+1] > 0){
+                    if (row + dir*2 <= 7 && row + dir*2 >= 0 && column+2 <= 7){
+                        if (board[row + dir*2][column+2]==0){
+                            ret.push([row + dir*2, column+2, 'j']);
+                        }
+                    }
+                }
+            }
+        }
     }
     return ret;
 }
@@ -205,16 +247,32 @@ function setCellPiece(row, column, piece){
     }
 }
 
+function doKingCheck(board){
+    for (var i = 1; i<8; i+=2){
+        if (board[0][i]==1){
+            board[0][i] = 3;
+            setCellPiece(0, i, 3);
+        }
+        if (board[7][i-1]==2){
+            board[7][i-1] = 4;
+            setCellPiece(7, i-1, 4);
+        }
+    }
+}
+
 function changeTurn() {
     turn = !turn;
     selected = null;
     possibleMoves = [];
     mustPlayerJump = playerMustJump(game_board, turn);
+    doKingCheck(game_board);
     if (turn){
         document.getElementById("whoseturn").src="assets/human.png";
     } else {
         document.getElementById("whoseturn").src="assets/computer.png";
-        makeAIMove();
+        setTimeout(function(){
+            makeAIMove();
+        }, 100);
     }
 }
 
@@ -228,18 +286,28 @@ function stateChange(newState) {
 
 function makeAIMove() {
     var moves = getAllPossibleMoves(game_board, false);
+    var move = [];
     if (moves.length==1){
         //Obviously dont need to find the best outcome...
+        move = moves[0];
+        movePiece(game_board, move[0], move[1], move[2], move[3]);
+        setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
+        setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
     } else {
         //fucking minimax the shit out of this bitch
-        var best = -100, move = [];
+        var best = -100;
+        m = moves[0];
         for (var i = 0; i<moves.length; i++){
             var m = moves[i];
             var tboard = game_board.slice();
             for (var j = 0; j<game_board.length; j++){
                 tboard[j] = game_board[j].slice();
             }
-            movePiece(tboard, m[0], m[1], m[2], m[3]);
+            movePiece(tboard, m[0], m[1], m[2], m[3], true);
+            if (mustPlayerJump && mustDoubleJump(tboard, m[2], m[3], false)){
+                m = getPossibleMoves(tboard, m[2], m[3], false, false);
+                movePiece(tboard, m[0], m[1], m[2], m[3], true);
+            }
             var score = minimax(tboard, 0, true, -100, 100);
             if (score > best){
                 best = score;
@@ -250,46 +318,71 @@ function makeAIMove() {
         setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
         setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
     }
-    changeTurn();
+    if (!mustPlayerJump || !mustDoubleJump(game_board, move[2], move[3], false)){
+        changeTurn();
+    } else {
+        aiDoubleJump(move[2], move[3]);
+    }
+}
+
+function aiDoubleJump(row, column){
+    var move = getPossibleMoves(game_board, row, column, false, false)[0];
+    movePiece(game_board, row, column, move[0], move[1]);
+    setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
+    setCellPiece(row, column, game_board[row][column]);
+    if (mustDoubleJump(game_board, move[0], move[1], false)){
+        aiDoubleJump(move[0], move[1]);
+    } else {
+        changeTurn();
+    }
 }
 
 //orignal = true: maximizer
 //original = false: minimizer
 //alpha is the best value from the maximizer
 //best is the 'worst' value from the minimizer
-function minimax(board, depth, original, alpha, beta) {
-    return Math.random();//BEST AI
-    /*
-    var talpha = alpha + 0;
-    var tbeta = beta + 0;
-    var result = testForWinner(b1, b2, depth);
-    if (result !=0 || getBoard(b1, b2)==FULL_BOARD) {
+function minimax(board, depth, ai, alpha, beta) {
+    var result = scoreBoardAI(board, depth);
+    if (Math.abs(result) > 80 || depth == 9) {
         return result;
     }
-    original = !original;
-    var mostLikelyScore = original ? -11 : 11;
+    var talpha = alpha + 0;
+    var tbeta = beta + 0;
+    ai = !ai;
+    var mostLikelyScore = ai ? -100 : 100;
+    var possibleSpaces = getAllPossibleMoves(board, !ai);
     for (var i = 0; i<possibleSpaces.length; i++){
-        var s = possibleSpaces[i];
-        if (spaceTaken(getBoard(b1, b2), s)) continue;
-        if (original){
-            var nb1 = b1 | s;
-            var s = minimax(nb1, b2, depth+1, original, talpha, tbeta);
+        var m = possibleSpaces[i];
+        var tboard = board.slice();
+        for (var j = 0; j<board.length; j++){
+            tboard[j] = board[j].slice();
+        }
+        movePiece(tboard, m[0], m[1], m[2], m[3], true);
+        if (mustPlayerJump && mustDoubleJump(tboard, m[2], m[3], false)){
+            m = getPossibleMoves(tboard, m[2], m[3], false, false);
+            movePiece(tboard, m[0], m[1], m[2], m[3], true);
+        }
+        var s = minimax(tboard, depth+1, ai, talpha, tbeta);
+        if (ai){
             if (s >= mostLikelyScore) mostLikelyScore = s;
             talpha = mostLikelyScore;
             if (mostLikelyScore >= beta) return mostLikelyScore;
         } else {
-            var nb2 = b2 | s;
-            var s = minimax(b1, nb2, depth+1, original, talpha, tbeta);
             if (s <= mostLikelyScore) mostLikelyScore = s;
             tbeta = mostLikelyScore;
             if (mostLikelyScore <= alpha) return mostLikelyScore;
         }
     }
     return mostLikelyScore;
-    */
 }
 
-function scoreBoardAI(board){
+function scoreBoardAI(board, depth){
+    if (testForWinner(board, false)==1){
+        return 100-depth;
+    }
+    if (testForWinner(board, false)==-1){
+        return depth-100;
+    }
     var sum = 0;
     for (var i = 0; i<64; i++){
         var p = board[Math.floor(i/8)][i%8];
@@ -303,8 +396,29 @@ function scoreBoardAI(board){
             sum += 3;
         }
     }
+    return sum;
 }
 
-function testForWinner(){
-
+function testForWinner(board, human){
+    var countSelf = 0;
+    var countOpponent = 0;
+    var opponent = human?0:1;
+    for (var i = 0; i<64; i++){
+        var p = board[Math.floor(i/8)][i%8];
+        if (p==0){
+            //IGNORE
+        }
+        else if (p%2==opponent){
+            countOpponent++;
+        } else {
+            countSelf++;
+        }
+    }
+    if (countOpponent==0){
+        return 1;
+    }
+    if (countSelf==0){
+        return -1;
+    }
+    return 0;
 }
