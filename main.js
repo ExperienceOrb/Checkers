@@ -350,7 +350,7 @@ function aiDoubleJump(row, column){
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, ai, alpha, beta) {
     var result = scoreBoardAI(board, depth);
-    if (Math.abs(result) > 800 || depth == 10) {
+    if (Math.abs(result) > 800 || depth == 11) {
         return result;
     }
     var talpha = alpha + 0;
@@ -405,9 +405,9 @@ function scoreBoardAI(board, depth){
         } else if (p==2){
             sum += 1;
         } else if (p==3){
-            sum -= 2;
+            sum -= 3;
         } else if (p==4){
-            sum += 2;
+            sum += 3;
         }
     }
     return sum;
