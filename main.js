@@ -246,15 +246,17 @@ function setCellPiece(row, column, piece){
     }
 }
 
-function doKingCheck(board){
+function doKingCheck(board, change){
     for (var i = 1; i<8; i+=2){
         if (board[0][i]==1){
             board[0][i] = 3;
-            setCellPiece(0, i, 3);
+            if (change)
+                setCellPiece(0, i, 3);
         }
         if (board[7][i-1]==2){
             board[7][i-1] = 4;
-            setCellPiece(7, i-1, 4);
+            if (change)
+                setCellPiece(7, i-1, 4);
         }
     }
 }
@@ -264,7 +266,7 @@ function changeTurn() {
     selected = null;
     possibleMoves = [];
     mustPlayerJump = playerMustJump(game_board, turn);
-    doKingCheck(game_board);
+    doKingCheck(game_board, true);
     var result = testForWinner(game_board, turn);
     if (result!=0){
         if ((result==1 && turn) || (result==-1&&!turn)){
@@ -299,6 +301,11 @@ function makeAIMove() {
         movePiece(game_board, move[0], move[1], move[2], move[3]);
         setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
         setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
+        if (!mustPlayerJump || !mustDoubleJump(game_board, move[2], move[3], false)){
+            changeTurn();
+        } else {
+            aiDoubleJump(move[2], move[3]);
+        }
     } else {
         //fucking minimax the shit out of this bitch
         var best = -1000;
@@ -321,14 +328,6 @@ function makeAIMove() {
                 move = m;
             }
         }
-        movePiece(game_board, move[0], move[1], move[2], move[3]);
-        setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
-        setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
-    }
-    if (!mustPlayerJump || !mustDoubleJump(game_board, move[2], move[3], false)){
-        changeTurn();
-    } else {
-        aiDoubleJump(move[2], move[3]);
     }
 }
 
@@ -349,8 +348,10 @@ function aiDoubleJump(row, column){
 //alpha is the best value from the maximizer
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, ai, alpha, beta) {
+    if (depth==0)
+        console.log("Running function...");
     var result = scoreBoardAI(board, depth);
-    if (Math.abs(result) > 800 || depth == 11 || result < -2) {
+    if (Math.abs(result) > 800 || depth == 12) {
         return result;
     }
     var talpha = alpha + 0;
