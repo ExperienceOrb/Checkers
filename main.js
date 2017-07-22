@@ -328,6 +328,14 @@ function makeAIMove() {
                 move = m;
             }
         }
+        movePiece(game_board, move[0], move[1], move[2], move[3]);
+        setCellPiece(move[2], move[3], game_board[move[2]][move[3]]);
+        setCellPiece(move[0], move[1], game_board[move[0]][move[1]]);
+        if (!mustPlayerJump || !mustDoubleJump(game_board, move[2], move[3], false)){
+            changeTurn();
+        } else {
+            aiDoubleJump(move[2], move[3]);
+        }
     }
 }
 
@@ -348,10 +356,8 @@ function aiDoubleJump(row, column){
 //alpha is the best value from the maximizer
 //best is the 'worst' value from the minimizer
 function minimax(board, depth, ai, alpha, beta) {
-    if (depth==0)
-        console.log("Running function...");
     var result = scoreBoardAI(board, depth);
-    if (Math.abs(result) > 800 || depth == 12) {
+    if (Math.abs(result) > 800 || depth == 11) {
         return result;
     }
     var talpha = alpha + 0;
